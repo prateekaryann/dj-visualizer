@@ -19,9 +19,14 @@ class LyricEngine {
     this._onMood = null;      // callback(moodProfile)
     this._onLyric = null;     // callback(word, moodProfile)
     this._onLine = null;      // callback(fullTranscript)
+    this._onError = null;     // callback(errorString)
     this._currentMood = null;
     this._moodDecayTimer = null;
     this._wordHistory = [];   // last 10 mood-triggering words (avoid repeats)
+
+    // Persistent lyrics history — all finalized lines stored here
+    this.lines = [];          // { text, timestamp, mood }
+    this._interimText = '';   // current in-progress text
   }
 
   // Mood dictionary — keywords grouped by emotional/visual theme
@@ -111,6 +116,7 @@ class LyricEngine {
     this._onMood = callbacks.onMood || null;
     this._onLyric = callbacks.onLyric || null;
     this._onLine = callbacks.onLine || null;
+    this._onError = callbacks.onError || null;
 
     this._recognition = new SpeechRecognition();
     this._recognition.continuous = true;
@@ -120,8 +126,14 @@ class LyricEngine {
 
     this._recognition.onresult = (e) => this._handleResult(e);
     this._recognition.onerror = (e) => {
-      if (e.error === 'no-speech' || e.error === 'aborted') return; // normal
       console.warn('[LyricEngine] error:', e.error);
+      if (e.error === 'no-speech' || e.error === 'aborted') return;
+      if (e.error === 'not-allowed') {
+        this.active = false;
+        if (this._onError) this._onError('Mic access needed for lyrics. Enable mic first.');
+      } else if (this._onError) {
+        this._onError('Speech recognition error: ' + e.error);
+      }
     };
     // Auto-restart if it stops (browser sometimes stops after silence)
     this._recognition.onend = () => {
@@ -152,10 +164,21 @@ class LyricEngine {
   }
 
   _handleResult(e) {
-    // Process all new results
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const result = e.results[i];
       const transcript = result[0].transcript.trim().toLowerCase();
+
+      if (result.isFinal && transcript.length > 0) {
+        // Store finalized line
+        this.lines.push({
+          text: transcript,
+          timestamp: Date.now(),
+          mood: this._currentMood
+        });
+        this._interimText = '';
+      } else {
+        this._interimText = transcript;
+      }
 
       // Emit full line
       if (this._onLine) {
@@ -203,6 +226,22 @@ class LyricEngine {
   /** @returns {string|null} current active mood name */
   getCurrentMood() {
     return this._currentMood;
+  }
+
+  /** @returns {string} current interim (in-progress) text */
+  getInterimText() {
+    return this._interimText;
+  }
+
+  /** @returns {string} full captured lyrics as a multiline string */
+  getFullLyrics() {
+    return this.lines.map(l => l.text).join('\n');
+  }
+
+  /** Clear stored lyrics */
+  clearHistory() {
+    this.lines = [];
+    this._interimText = '';
   }
 }
 

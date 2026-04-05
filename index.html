@@ -19,9 +19,25 @@
   <!-- Three.js mount target -->
   <div id="viz-container"></div>
 
-  <!-- Floating lyrics overlay -->
+  <!-- Floating lyrics overlay (mood words) -->
   <div id="lyric-overlay" aria-live="polite"></div>
   <div id="lyric-line" aria-live="polite"></div>
+
+  <!-- Lyrics capture panel — slide-up from bottom -->
+  <div id="lyrics-panel" class="lyrics-panel">
+    <div class="lyrics-panel-header">
+      <span class="lyrics-panel-title">CAPTURED LYRICS</span>
+      <div class="lyrics-panel-actions">
+        <button id="btn-lyrics-copy" type="button" title="Copy lyrics">COPY</button>
+        <button id="btn-lyrics-clear" type="button" title="Clear lyrics">CLEAR</button>
+        <button id="btn-lyrics-close" type="button" title="Close panel">&times;</button>
+      </div>
+    </div>
+    <div id="lyrics-content" class="lyrics-panel-content">
+      <div class="lyrics-empty">Enable LYRICS mode to start capturing...</div>
+    </div>
+    <div id="lyrics-interim" class="lyrics-interim"></div>
+  </div>
 
   <!-- UI overlay -->
   <div id="ui">
@@ -89,6 +105,16 @@
         <button id="btn-tap" type="button" aria-label="Tap to set BPM">TAP BPM</button>
         <span id="bpm-display" aria-live="polite">-- BPM</span>
       </div>
+
+      <!-- Show lyrics panel -->
+      <button id="btn-show-lyrics" type="button" class="scene-tab" aria-label="Show captured lyrics">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" style="vertical-align:-2px;margin-right:4px">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <polyline points="14 2 14 8 20 8"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>LYRICS
+      </button>
 
       <!-- Mic status indicator -->
       <div id="status-dot" aria-live="polite" aria-label="Microphone status">

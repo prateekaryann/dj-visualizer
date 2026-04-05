@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
   startAnimationLoop();
   setupMicButton();
   setupLyricsButton();
+  setupLyricsPanel();
   setupSceneTabs();
   setupTapBpm();
   setupUiAutoHide();
@@ -180,39 +181,50 @@ const toggleLyrics = () => {
   if (!lyricsActive) {
     const started = lyricEngine.start({
       onMood: (profile, moodName) => {
-        // Switch visual theme + formation based on detected mood
         vizBG.setTheme(profile.theme);
         vizBG.setGenre(profile.genre);
 
-        // Trigger a mood flash
         const flash = document.getElementById('mood-flash');
         if (flash) {
           flash.style.background = `radial-gradient(ellipse at center, ${profile.color}44, transparent 70%)`;
           flash.classList.remove('active');
-          void flash.offsetWidth; // force reflow
+          void flash.offsetWidth;
           flash.classList.add('active');
         }
 
-        // Show scene toast with mood name
         showSceneToast(moodName.toUpperCase());
       },
       onLyric: (word, profile) => {
-        // Spawn floating word on the canvas
         spawnLyricWord(word, profile.color);
-        // Trigger a click burst at a random position for emphasis
         vizBG.triggerClick((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.5);
       },
       onLine: (transcript, isFinal) => {
+        // Floating line at bottom of screen
         const line = document.getElementById('lyric-line');
-        if (!line) return;
-        line.textContent = transcript;
-        line.classList.add('visible');
-        line.classList.toggle('interim', !isFinal);
-        // Fade out after 4s of no update
-        clearTimeout(line._hideTimer);
-        line._hideTimer = setTimeout(() => {
-          line.classList.remove('visible');
-        }, 4000);
+        if (line) {
+          line.textContent = transcript;
+          line.classList.add('visible');
+          line.classList.toggle('interim', !isFinal);
+          clearTimeout(line._hideTimer);
+          line._hideTimer = setTimeout(() => line.classList.remove('visible'), 4000);
+        }
+
+        // Update lyrics panel
+        const interim = document.getElementById('lyrics-interim');
+        if (interim) interim.textContent = isFinal ? '' : transcript;
+
+        if (isFinal && transcript.length > 0) {
+          appendLyricLine(transcript, lyricEngine.getCurrentMood());
+        }
+      },
+      onError: (msg) => {
+        console.error('[LyricEngine]', msg);
+        alert(msg);
+        // Reset button state
+        lyricsActive = false;
+        btn.classList.remove('active');
+        btn.querySelector('span').textContent = 'LYRICS';
+        btn.setAttribute('aria-pressed', 'false');
       }
     });
 
@@ -229,6 +241,7 @@ const toggleLyrics = () => {
     btn.querySelector('span').textContent = 'LYRICS';
     btn.setAttribute('aria-pressed', 'false');
     document.getElementById('lyric-line').classList.remove('visible');
+    document.getElementById('lyrics-interim').textContent = '';
   }
 };
 
@@ -250,6 +263,77 @@ const spawnLyricWord = (word, color) => {
 
   // Remove after animation ends
   setTimeout(() => el.remove(), 3600);
+};
+
+// --- Lyrics Panel ---
+
+const appendLyricLine = (text, mood) => {
+  const content = document.getElementById('lyrics-content');
+  if (!content) return;
+
+  // Remove empty state placeholder
+  const empty = content.querySelector('.lyrics-empty');
+  if (empty) empty.remove();
+
+  const el = document.createElement('div');
+  el.className = 'lyric-captured-line';
+
+  // Timestamp
+  const now = new Date();
+  const ts = String(now.getHours()).padStart(2, '0') + ':' +
+             String(now.getMinutes()).padStart(2, '0') + ':' +
+             String(now.getSeconds()).padStart(2, '0');
+
+  let html = `<span class="lyric-timestamp">${ts}</span>${text}`;
+  if (mood) {
+    html += ` <span class="lyric-mood-tag ${mood}">${mood.toUpperCase()}</span>`;
+  }
+  el.innerHTML = html;
+  content.appendChild(el);
+
+  // Auto-scroll to bottom
+  content.scrollTop = content.scrollHeight;
+};
+
+const setupLyricsPanel = () => {
+  const panel = document.getElementById('lyrics-panel');
+  const btnShow = document.getElementById('btn-show-lyrics');
+  const btnClose = document.getElementById('btn-lyrics-close');
+  const btnCopy = document.getElementById('btn-lyrics-copy');
+  const btnClear = document.getElementById('btn-lyrics-clear');
+
+  if (btnShow) {
+    btnShow.addEventListener('click', () => {
+      panel.classList.toggle('open');
+      btnShow.classList.toggle('active', panel.classList.contains('open'));
+    });
+  }
+
+  if (btnClose) {
+    btnClose.addEventListener('click', () => {
+      panel.classList.remove('open');
+      if (btnShow) btnShow.classList.remove('active');
+    });
+  }
+
+  if (btnCopy) {
+    btnCopy.addEventListener('click', () => {
+      const lyrics = lyricEngine.getFullLyrics();
+      if (!lyrics) return;
+      navigator.clipboard.writeText(lyrics).then(() => {
+        btnCopy.textContent = 'COPIED!';
+        setTimeout(() => { btnCopy.textContent = 'COPY'; }, 1500);
+      });
+    });
+  }
+
+  if (btnClear) {
+    btnClear.addEventListener('click', () => {
+      lyricEngine.clearHistory();
+      const content = document.getElementById('lyrics-content');
+      if (content) content.innerHTML = '<div class="lyrics-empty">Lyrics cleared. Listening...</div>';
+    });
+  }
 };
 
 // --- Scene Tabs ---
