@@ -76,6 +76,8 @@ const startAnimationLoop = () => {
 
 // --- Scene ---
 
+let sceneToastTimer = null;
+
 const applyScene = (scene) => {
   currentScene = scene;
   vizBG.setGenre(SCENE_GENRE[scene]);
@@ -84,6 +86,26 @@ const applyScene = (scene) => {
   document.querySelectorAll('.scene-tab').forEach(tab => {
     tab.classList.toggle('active', tab.dataset.scene === scene);
   });
+
+  // Show scene name toast briefly
+  showSceneToast(scene);
+};
+
+const showSceneToast = (scene) => {
+  let toast = document.getElementById('scene-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'scene-toast';
+    document.getElementById('ui').appendChild(toast);
+  }
+  toast.textContent = scene;
+  toast.classList.remove('hide');
+  toast.classList.add('show');
+  clearTimeout(sceneToastTimer);
+  sceneToastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+    toast.classList.add('hide');
+  }, 1200);
 };
 
 // --- Mic ---
@@ -105,16 +127,18 @@ const toggleMic = async () => {
     try {
       await micAnalyser.start();
       btn.classList.add('active');
-      btn.textContent = 'LIVE';
+      btn.querySelector('span').textContent = '● LIVE';
+      btn.setAttribute('aria-pressed', 'true');
       vizBG.setMicMode(true);
       dot.classList.add('listening');
     } catch {
-      alert('Mic access denied');
+      alert('Mic access denied — check browser permissions.');
     }
   } else {
     micAnalyser.stop();
     btn.classList.remove('active');
-    btn.textContent = 'TAP MIC';
+    btn.querySelector('span').textContent = 'TAP MIC';
+    btn.setAttribute('aria-pressed', 'false');
     vizBG.setMicMode(false);
     dot.classList.remove('listening');
   }

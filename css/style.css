@@ -361,3 +361,37 @@ body.obs-mode #viz-container canvas {
     padding: 0.35rem 0.65rem;
   }
 }
+
+/* ------------------------------------------------------------
+   SCENE TOAST — brief scene name flash on switch
+   ------------------------------------------------------------ */
+#scene-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 3rem;
+  font-weight: 300;
+  letter-spacing: 0.4em;
+  color: rgba(0, 210, 255, 0.0);
+  pointer-events: none;
+  z-index: 20;
+  transition: color 0.15s ease, opacity 0.5s ease;
+  opacity: 0;
+  text-shadow: 0 0 40px rgba(0, 210, 255, 0.6);
+  white-space: nowrap;
+}
+
+#scene-toast.show {
+  opacity: 1;
+  color: rgba(0, 210, 255, 0.85);
+  animation: toastFade 1.2s ease forwards;
+}
+
+@keyframes toastFade {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  20%  { opacity: 1; transform: translate(-50%, -50%) scale(1);   }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.05); }
+}
