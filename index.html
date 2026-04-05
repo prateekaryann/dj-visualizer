@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="Real-time mic-reactive 3D visualizer for DJs and electronic music" />
+  <title>VIZORA — Live Visualizer</title>
+
+  <!-- Google Fonts: preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@300;400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Three.js mount target -->
+  <div id="viz-container"></div>
+
+  <!-- UI overlay -->
+  <div id="ui">
+
+    <!-- Top-left: brand -->
+    <div id="brand">
+      <svg id="brand-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 24" aria-hidden="true" focusable="false">
+        <polyline points="0,12 4,12 6,4 9,20 12,8 15,16 18,10 21,14 24,6 27,18 30,10 33,14 36,12 40,12"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      <span id="brand-name">VIZORA</span>
+    </div>
+
+    <!-- Top-right: controls -->
+    <div id="top-controls">
+      <button id="btn-mic" type="button" aria-label="Toggle microphone input" aria-pressed="false">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <rect x="9" y="2" width="6" height="11" rx="3" ry="3"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M5 10a7 7 0 0 0 14 0"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="12" y1="17" x2="12" y2="21"
+            stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="9" y1="21" x2="15" y2="21"
+            stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span>TAP MIC</span>
+      </button>
+
+      <button id="btn-fullscreen" type="button" aria-label="Toggle fullscreen">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <polyline points="4,9 4,4 9,4"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="15,4 20,4 20,9"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="20,15 20,20 15,20"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="9,20 4,20 4,15"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Bottom bar -->
+    <div id="bottom-bar">
+
+      <!-- Scene selector tabs -->
+      <div id="scene-tabs" role="tablist" aria-label="Visualizer scene">
+        <button type="button" role="tab" data-scene="TECHNO" aria-selected="true"  class="scene-tab active">TECHNO</button>
+        <button type="button" role="tab" data-scene="TRANCE" aria-selected="false" class="scene-tab">TRANCE</button>
+        <button type="button" role="tab" data-scene="HOUSE"  aria-selected="false" class="scene-tab">HOUSE</button>
+        <button type="button" role="tab" data-scene="MINIMAL" aria-selected="false" class="scene-tab">MINIMAL</button>
+        <button type="button" role="tab" data-scene="ACID"   aria-selected="false" class="scene-tab">ACID</button>
+      </div>
+
+      <!-- Tap tempo -->
+      <div id="tap-tempo">
+        <button id="btn-tap" type="button" aria-label="Tap to set BPM">TAP BPM</button>
+        <span id="bpm-display" aria-live="polite">-- BPM</span>
+      </div>
+
+      <!-- Mic status indicator -->
+      <div id="status-dot" aria-live="polite" aria-label="Microphone status">
+        <span id="status-dot-pulse"></span>
+        <span id="status-dot-label">LISTENING</span>
+      </div>
+
+    </div><!-- /#bottom-bar -->
+
+  </div><!-- /#ui -->
+
+  <!-- Three.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- App scripts (order matters) -->
+  <script src="js/visualizer-bg.js"></script>
+  <script src="js/mic-analyser.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
