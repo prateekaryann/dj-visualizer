@@ -32,7 +32,7 @@ class MicAnalyser {
     if (this.active) return;
 
     this._stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      audio: true,
       video: false,
     });
 
