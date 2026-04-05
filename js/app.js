@@ -131,8 +131,21 @@ const toggleMic = async () => {
       btn.setAttribute('aria-pressed', 'true');
       vizBG.setMicMode(true);
       dot.classList.add('listening');
-    } catch {
-      alert('Mic access denied — check browser permissions.');
+    } catch (err) {
+      const isDenied = err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError');
+      const isNotFound = err && err.name === 'NotFoundError';
+      let msg = 'Mic error: ' + (err ? err.name : 'unknown');
+      if (isDenied) {
+        msg = 'Mic blocked by browser.\n\n'
+          + 'To fix:\n'
+          + '1. Click the 🔒 lock icon in the address bar\n'
+          + '2. Set Microphone → Allow\n'
+          + '3. Reload the page\n\n'
+          + 'Or go to: Chrome Settings → Privacy → Site Settings → Microphone → remove this site from the blocked list.';
+      } else if (isNotFound) {
+        msg = 'No microphone found. Plug in a mic and try again.';
+      }
+      alert(msg);
     }
   } else {
     micAnalyser.stop();
