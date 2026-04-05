@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VIZORA — Real-Time 3D DJ Visualizer</title>
+  <meta name="description" content="Real-time 3D particle and fractal visuals that react to your music. Works in browser, works as OBS overlay. 5 DJ scenes: TECHNO, TRANCE, HOUSE, MINIMAL, ACID." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --cyan: #00d2ff;
+      --indigo: #6366f1;
+      --bg: #000;
+      --surface: rgba(255, 255, 255, 0.03);
+      --surface-border: rgba(255, 255, 255, 0.07);
+      --text-primary: #f0f0f0;
+      --text-muted: #888;
+      --glow-cyan: 0 0 20px rgba(0, 210, 255, 0.5), 0 0 60px rgba(0, 210, 255, 0.2);
+      --glow-indigo: 0 0 20px rgba(99, 102, 241, 0.4);
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Share Tech Mono', monospace;
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #000; }
+    ::-webkit-scrollbar-thumb { background: var(--indigo); border-radius: 2px; }
+
+    /* ─── HERO ─── */
+    @keyframes aurora {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { text-shadow: 0 0 20px rgba(0, 210, 255, 0.6), 0 0 60px rgba(0, 210, 255, 0.3), 0 0 120px rgba(0, 210, 255, 0.1); }
+      50%       { text-shadow: 0 0 30px rgba(0, 210, 255, 0.9), 0 0 80px rgba(0, 210, 255, 0.5), 0 0 160px rgba(0, 210, 255, 0.2); }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-8px); }
+    }
+
+    @keyframes scan-line {
+      0%   { transform: translateY(-100%); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translateY(2000%); opacity: 0; }
+    }
+
+    @keyframes fade-in-up {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes border-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+      background: linear-gradient(
+        135deg,
+        #000000 0%,
+        #050a1a 10%,
+        #0a0520 25%,
+        #010d1f 40%,
+        #060215 55%,
+        #000d20 70%,
+        #0a0528 85%,
+        #000000 100%
+      );
+      background-size: 400% 400%;
+      animation: aurora 18s ease infinite;
+    }
+
+    /* Noise texture overlay */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    /* Radial vignette */
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.7) 100%);
+      pointer-events: none;
+    }
+
+    /* Scan line effect */
+    .hero-scan {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0, 210, 255, 0.4), transparent);
+      animation: scan-line 8s linear infinite;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Grid lines */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 210, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 210, 255, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 900px;
+      padding: 2rem;
+      animation: fade-in-up 1s ease both;
+    }
+
+    .hero-eyebrow {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.4em;
+      color: var(--cyan);
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      opacity: 0.8;
+    }
+
+    .hero-eyebrow::before {
+      content: '▶ ';
+      color: var(--indigo);
+    }
+
+    .hero-title {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(4rem, 8vw, 9rem);
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      color: var(--cyan);
+      animation: pulse-glow 4s ease-in-out infinite;
+      line-height: 1;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-subtitle {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: clamp(1rem, 2.2vw, 1.35rem);
+      color: rgba(240, 240, 240, 0.75);
+      max-width: 520px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.7;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+
+    .btn-primary {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: #000;
+      background: var(--cyan);
+      border: none;
+      padding: 1rem 2.2rem;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    }
+
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.4s ease;
+    }
+
+    .btn-primary:hover {
+      background: #33dcff;
+      box-shadow: 0 0 30px rgba(0, 210, 255, 0.6), 0 0 60px rgba(0, 210, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .btn-primary:hover::before {
+      transform: translateX(100%);
+    }
+
+    .btn-ghost {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--cyan);
+      background: transparent;
+      border: 1px solid rgba(0, 210, 255, 0.4);
+      padding: 1rem 2.2rem;
+      transition: all 0.3s ease;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    }
+
+    .btn-ghost:hover {
+      background: rgba(0, 210, 255, 0.08);
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px rgba(0, 210, 255, 0.2), inset 0 0 20px rgba(0, 210, 255, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .hero-hint {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+
+    .hero-hint span {
+      color: rgba(99, 102, 241, 0.8);
+    }
+
+    /* Decorative orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .orb-1 {
+      width: 500px;
+      height: 500px;
+      background: rgba(99, 102, 241, 0.08);
+      top: -100px;
+      right: -100px;
+      animation-delay: 0s;
+    }
+
+    .orb-2 {
+      width: 400px;
+      height: 400px;
+      background: rgba(0, 210, 255, 0.06);
+      bottom: -80px;
+      left: -80px;
+      animation-delay: 3s;
+    }
+
+    .orb-3 {
+      width: 300px;
+      height: 300px;
+      background: rgba(99, 102, 241, 0.06);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation-delay: 1.5s;
+    }
+
+    /* Scroll indicator */
+    .scroll-hint {
+      position: absolute;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      color: rgba(255,255,255,0.3);
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      animation: fade-in-up 1.5s ease 0.8s both;
+    }
+
+    .scroll-hint-line {
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(to bottom, rgba(0, 210, 255, 0.5), transparent);
+      animation: float 2s ease-in-out infinite;
+    }
+
+    /* ─── SECTION BASE ─── */
+    section {
+      padding: 6rem 2rem;
+    }
+
+    .section-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.5em;
+      color: var(--indigo);
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+
+    .section-title {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      line-height: 1.1;
+    }
+
+    .section-title .accent {
+      color: var(--cyan);
+    }
+
+    /* ─── FEATURES ─── */
+    .features {
+      background: var(--bg);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .features-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .features-header p {
+      color: var(--text-muted);
+      max-width: 480px;
+      margin: 0 auto;
+      font-size: 0.9rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5px;
+      background: var(--surface-border);
+    }
+
+    .feature-card {
+      background: #000;
+      padding: 2.5rem 2rem;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s ease;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0, 210, 255, 0.04), rgba(99, 102, 241, 0.04));
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+
+    .feature-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      transform: scaleX(0);
+      transition: transform 0.4s ease;
+    }
+
+    .feature-card:hover::after {
+      transform: scaleX(1);
+    }
+
+    .feature-icon {
+      font-size: 1.8rem;
+      margin-bottom: 1.2rem;
+      display: block;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    .feature-card:nth-child(2) .feature-icon { animation-delay: 0.5s; }
+    .feature-card:nth-child(3) .feature-icon { animation-delay: 1s; }
+    .feature-card:nth-child(4) .feature-icon { animation-delay: 1.5s; }
+    .feature-card:nth-child(5) .feature-icon { animation-delay: 2s; }
+    .feature-card:nth-child(6) .feature-icon { animation-delay: 2.5s; }
+
+    .feature-name {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--cyan);
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .feature-desc {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      color: rgba(240, 240, 240, 0.55);
+      line-height: 1.7;
+    }
+
+    .feature-card-number {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.6rem;
+      color: rgba(255,255,255,0.08);
+      font-weight: 900;
+    }
+
+    /* ─── OBS SETUP ─── */
+    .obs-setup {
+      background: linear-gradient(180deg, #000 0%, #030810 50%, #000 100%);
+    }
+
+    .obs-inner {
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .obs-inner .section-title {
+      margin-bottom: 3.5rem;
+    }
+
+    .steps-list {
+      list-style: none;
+      margin-bottom: 3rem;
+      text-align: left;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      padding: 1.5rem 0;
+      border-bottom: 1px solid var(--surface-border);
+      position: relative;
+    }
+
+    .step-item:last-child {
+      border-bottom: none;
+    }
+
+    .step-number {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.7rem;
+      font-weight: 900;
+      color: #000;
+      background: var(--cyan);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+      clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px));
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-title {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .step-sub {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .terminal-block {
+      background: #020c14;
+      border: 1px solid rgba(0, 210, 255, 0.2);
+      border-radius: 2px;
+      overflow: hidden;
+      text-align: left;
+    }
+
+    .terminal-header {
+      background: rgba(0, 210, 255, 0.06);
+      border-bottom: 1px solid rgba(0, 210, 255, 0.15);
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .terminal-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot:nth-child(1) { background: #ff5f56; }
+    .terminal-dot:nth-child(2) { background: #ffbd2e; }
+    .terminal-dot:nth-child(3) { background: #27c93f; }
+
+    .terminal-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-left: auto;
+      letter-spacing: 0.1em;
+    }
+
+    .terminal-body {
+      padding: 1.5rem;
+    }
+
+    .terminal-prompt {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .terminal-url {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: clamp(0.7rem, 1.5vw, 0.95rem);
+      color: var(--cyan);
+      word-break: break-all;
+      text-shadow: 0 0 10px rgba(0, 210, 255, 0.4);
+    }
+
+    .terminal-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 1em;
+      background: var(--cyan);
+      vertical-align: text-bottom;
+      animation: blink 1.2s step-end infinite;
+      margin-left: 2px;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ─── SCENES ─── */
+    .scenes {
+      background: var(--bg);
+    }
+
+    .scenes-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .scenes-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .scenes-header p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .scenes-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1px;
+      background: var(--surface-border);
+    }
+
+    @media (max-width: 900px) {
+      .scenes-row {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+    }
+
+    .scene-card {
+      background: #000;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s ease;
+      cursor: default;
+    }
+
+    .scene-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .scene-card:nth-child(1)::before { background: radial-gradient(ellipse at center, rgba(255, 50, 50, 0.06), transparent 70%); }
+    .scene-card:nth-child(2)::before { background: radial-gradient(ellipse at center, rgba(99, 102, 241, 0.1), transparent 70%); }
+    .scene-card:nth-child(3)::before { background: radial-gradient(ellipse at center, rgba(255, 170, 0, 0.07), transparent 70%); }
+    .scene-card:nth-child(4)::before { background: radial-gradient(ellipse at center, rgba(0, 210, 255, 0.07), transparent 70%); }
+    .scene-card:nth-child(5)::before { background: radial-gradient(ellipse at center, rgba(0, 255, 100, 0.06), transparent 70%); }
+
+    .scene-card:hover::before {
+      opacity: 1;
+    }
+
+    .scene-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .scene-key {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(255,255,255,0.15);
+      font-family: 'Orbitron', monospace;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .scene-name {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.7rem;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+      margin-bottom: 1rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .scene-card:nth-child(1) .scene-name { color: #ff5a5a; }
+    .scene-card:nth-child(2) .scene-name { color: var(--indigo); }
+    .scene-card:nth-child(3) .scene-name { color: #ffaa00; }
+    .scene-card:nth-child(4) .scene-name { color: var(--cyan); }
+    .scene-card:nth-child(5) .scene-name { color: #00ff66; }
+
+    .scene-desc {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      color: rgba(240, 240, 240, 0.45);
+      line-height: 1.6;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Scene bar decoration */
+    .scene-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      transform: scaleX(0);
+      transition: transform 0.4s ease;
+    }
+
+    .scene-card:nth-child(1) .scene-bar { background: #ff5a5a; }
+    .scene-card:nth-child(2) .scene-bar { background: var(--indigo); }
+    .scene-card:nth-child(3) .scene-bar { background: #ffaa00; }
+    .scene-card:nth-child(4) .scene-bar { background: var(--cyan); }
+    .scene-card:nth-child(5) .scene-bar { background: #00ff66; }
+
+    .scene-card:hover .scene-bar {
+      transform: scaleX(1);
+    }
+
+    /* EQ bars decoration */
+    .scene-eq {
+      display: flex;
+      justify-content: center;
+      gap: 3px;
+      margin-bottom: 1.5rem;
+      height: 24px;
+      align-items: flex-end;
+    }
+
+    .scene-eq-bar {
+      width: 3px;
+      border-radius: 1px;
+      animation: eq-dance 1.5s ease-in-out infinite alternate;
+    }
+
+    .scene-card:nth-child(1) .scene-eq-bar { background: rgba(255, 90, 90, 0.5); }
+    .scene-card:nth-child(2) .scene-eq-bar { background: rgba(99, 102, 241, 0.5); }
+    .scene-card:nth-child(3) .scene-eq-bar { background: rgba(255, 170, 0, 0.5); }
+    .scene-card:nth-child(4) .scene-eq-bar { background: rgba(0, 210, 255, 0.5); }
+    .scene-card:nth-child(5) .scene-eq-bar { background: rgba(0, 255, 102, 0.5); }
+
+    @keyframes eq-dance {
+      from { height: 4px; }
+      to   { height: 20px; }
+    }
+
+    .scene-eq-bar:nth-child(1) { animation-duration: 0.8s; animation-delay: 0.0s; }
+    .scene-eq-bar:nth-child(2) { animation-duration: 1.1s; animation-delay: 0.1s; }
+    .scene-eq-bar:nth-child(3) { animation-duration: 0.6s; animation-delay: 0.2s; }
+    .scene-eq-bar:nth-child(4) { animation-duration: 1.3s; animation-delay: 0.1s; }
+    .scene-eq-bar:nth-child(5) { animation-duration: 0.9s; animation-delay: 0.3s; }
+
+    /* ─── KEYBOARD SHORTCUTS STRIP ─── */
+    .shortcuts-strip {
+      background: rgba(255,255,255,0.015);
+      border-top: 1px solid var(--surface-border);
+      border-bottom: 1px solid var(--surface-border);
+      padding: 2rem;
+      overflow: hidden;
+    }
+
+    .shortcuts-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 2.5rem;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .shortcut-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .key-badge {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 0.25rem 0.6rem;
+      min-width: 32px;
+      text-align: center;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.5);
+    }
+
+    .key-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: #000;
+      border-top: 1px solid var(--surface-border);
+      padding: 3rem 2rem;
+    }
+
+    .footer-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      text-align: center;
+    }
+
+    .footer-wordmark {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.4rem;
+      font-weight: 900;
+      letter-spacing: 0.3em;
+      color: var(--cyan);
+      text-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .footer-links a {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      transition: color 0.2s ease;
+      position: relative;
+    }
+
+    .footer-links a::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: var(--cyan);
+      transform: scaleX(0);
+      transition: transform 0.2s ease;
+    }
+
+    .footer-links a:hover {
+      color: var(--cyan);
+    }
+
+    .footer-links a:hover::after {
+      transform: scaleX(1);
+    }
+
+    .footer-tech {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.15);
+      letter-spacing: 0.1em;
+    }
+
+    .footer-tech .sep {
+      color: var(--indigo);
+      margin: 0 0.5rem;
+      opacity: 0.5;
+    }
+
+    /* ─── DIVIDER ─── */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--surface-border), transparent);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 768px) {
+      section {
+        padding: 4rem 1.5rem;
+      }
+
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .scenes-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .hero-ctas {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .btn-primary, .btn-ghost {
+        width: 100%;
+        max-width: 300px;
+        text-align: center;
+      }
+
+      .shortcut-item {
+        flex-basis: calc(50% - 1.25rem);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .scenes-row {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .scene-card:last-child {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ─── HERO ─── -->
+  <section class="hero" id="top">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-scan"></div>
+
+    <div class="hero-content">
+      <p class="hero-eyebrow">Real-time · WebGL · Browser-native</p>
+      <h1 class="hero-title">VIZORA</h1>
+      <p class="hero-subtitle">Real-time 3D visuals that breathe with your music.</p>
+      <div class="hero-ctas">
+        <a href="index.html" class="btn-primary">LAUNCH VISUALIZER →</a>
+        <a href="index.html?obs=1" class="btn-ghost">USE IN OBS</a>
+      </div>
+      <p class="hero-hint">
+        Works in Chrome &amp; Firefox
+        <span>·</span>
+        No install
+        <span>·</span>
+        Free
+      </p>
+    </div>
+
+    <div class="scroll-hint">
+      <div class="scroll-hint-line"></div>
+      <span>scroll</span>
+    </div>
+  </section>
+
+  <!-- ─── KEYBOARD SHORTCUTS STRIP ─── -->
+  <div class="shortcuts-strip">
+    <div class="shortcuts-inner">
+      <div class="shortcut-item">
+        <span class="key-badge">SPACE</span>
+        <span class="key-label">Toggle mic</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="key-badge">1–5</span>
+        <span class="key-label">Switch scene</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="key-badge">F</span>
+        <span class="key-label">Fullscreen</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="key-badge">T</span>
+        <span class="key-label">Tap BPM</span>
+      </div>
+      <div class="shortcut-item">
+        <span class="key-badge">ESC</span>
+        <span class="key-label">Exit fullscreen</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── FEATURES ─── -->
+  <section>
+    <div class="features">
+      <header class="features-header">
+        <span class="section-label">// capabilities</span>
+        <h2 class="section-title">BUILT FOR <span class="accent">DJS</span></h2>
+        <p>Everything you need to turn a browser tab into a stage-ready visual engine.</p>
+      </header>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-card-number">01</span>
+          <span class="feature-icon">🎙</span>
+          <h3 class="feature-name">Mic-Reactive</h3>
+          <p class="feature-desc">Listens to your room in real time. Every beat, every drop — the visuals feel it.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-card-number">02</span>
+          <span class="feature-icon">🎛</span>
+          <h3 class="feature-name">5 DJ Scenes</h3>
+          <p class="feature-desc">TECHNO, TRANCE, HOUSE, MINIMAL, ACID. Switch live with one click or keyboard shortcut.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-card-number">03</span>
+          <span class="feature-icon">📺</span>
+          <h3 class="feature-name">OBS Ready</h3>
+          <p class="feature-desc">Add <code style="color: var(--cyan); font-size: 0.8em;">?obs=1</code> to the URL. Drop it as a browser source. Transparent background, zero setup.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-card-number">04</span>
+          <span class="feature-icon">⌨️</span>
+          <h3 class="feature-name">Keyboard Control</h3>
+          <p class="feature-desc">Space to toggle mic. 1–5 to switch scenes. F for fullscreen. T to tap BPM.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-card-number">05</span>
+          <span class="feature-icon">🔁</span>
+          <h3 class="feature-name">Tap BPM</h3>
+          <p class="feature-desc">Tap to the beat, sync formation morphing to your track's tempo.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-card-number">06</span>
+          <span class="feature-icon">🚀</span>
+          <h3 class="feature-name">Zero Install</h3>
+          <p class="feature-desc">Pure browser. Three.js + Web Audio API. No app, no signup, no login.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ─── OBS SETUP ─── -->
+  <section class="obs-setup" id="obs">
+    <div class="obs-inner">
+      <span class="section-label">// streaming setup</span>
+      <h2 class="section-title">STREAM SETUP IN <span class="accent">30 SECONDS</span></h2>
+
+      <ol class="steps-list">
+        <li class="step-item">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <p class="step-title">Open OBS → Add Browser Source</p>
+            <p class="step-sub">Sources panel → click + → Browser</p>
+          </div>
+        </li>
+        <li class="step-item">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <p class="step-title">Paste the VIZORA OBS URL</p>
+            <p class="step-sub">Use the URL below with the <code style="color: var(--cyan);">?obs=1</code> flag for transparent background</p>
+          </div>
+        </li>
+        <li class="step-item">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <p class="step-title">Set resolution to 1920×1080</p>
+            <p class="step-sub">Width: 1920 · Height: 1080 · FPS: match your stream settings</p>
+          </div>
+        </li>
+        <li class="step-item">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <p class="step-title">Enable "Control audio via OBS"</p>
+            <p class="step-sub">For desktop audio routing — VIZORA reacts to whatever OBS is capturing</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="terminal-block">
+        <div class="terminal-header">
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <span class="terminal-label">OBS Browser Source URL</span>
+        </div>
+        <div class="terminal-body">
+          <p class="terminal-prompt">// paste this into OBS Browser Source</p>
+          <p class="terminal-url">https://dj-visualizer.vercel.app/?obs=1<span class="terminal-cursor"></span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ─── SCENES ─── -->
+  <section class="scenes" id="scenes">
+    <div class="scenes-inner">
+      <header class="scenes-header">
+        <span class="section-label">// visual modes</span>
+        <h2 class="section-title">FIVE <span class="accent">SCENES</span></h2>
+        <p>Each scene is a distinct visual personality. Pick yours, switch live, or let it evolve.</p>
+      </header>
+
+      <div class="scenes-row">
+        <div class="scene-card">
+          <div class="scene-bar"></div>
+          <div class="scene-key">1</div>
+          <div class="scene-eq">
+            <div class="scene-eq-bar" style="height:18px"></div>
+            <div class="scene-eq-bar" style="height:8px"></div>
+            <div class="scene-eq-bar" style="height:22px"></div>
+            <div class="scene-eq-bar" style="height:12px"></div>
+            <div class="scene-eq-bar" style="height:20px"></div>
+          </div>
+          <h3 class="scene-name">TECHNO</h3>
+          <p class="scene-desc">Hard-hitting, aggressive. Maximum beat reactivity.</p>
+        </div>
+        <div class="scene-card">
+          <div class="scene-bar"></div>
+          <div class="scene-key">2</div>
+          <div class="scene-eq">
+            <div class="scene-eq-bar" style="height:10px"></div>
+            <div class="scene-eq-bar" style="height:18px"></div>
+            <div class="scene-eq-bar" style="height:6px"></div>
+            <div class="scene-eq-bar" style="height:20px"></div>
+            <div class="scene-eq-bar" style="height:14px"></div>
+          </div>
+          <h3 class="scene-name">TRANCE</h3>
+          <p class="scene-desc">Sweeping, melodic. Slow morphs, deep formations.</p>
+        </div>
+        <div class="scene-card">
+          <div class="scene-bar"></div>
+          <div class="scene-key">3</div>
+          <div class="scene-eq">
+            <div class="scene-eq-bar" style="height:14px"></div>
+            <div class="scene-eq-bar" style="height:10px"></div>
+            <div class="scene-eq-bar" style="height:18px"></div>
+            <div class="scene-eq-bar" style="height:8px"></div>
+            <div class="scene-eq-bar" style="height:16px"></div>
+          </div>
+          <h3 class="scene-name">HOUSE</h3>
+          <p class="scene-desc">Warm, bouncy. Mid-energy formations.</p>
+        </div>
+        <div class="scene-card">
+          <div class="scene-bar"></div>
+          <div class="scene-key">4</div>
+          <div class="scene-eq">
+            <div class="scene-eq-bar" style="height:6px"></div>
+            <div class="scene-eq-bar" style="height:12px"></div>
+            <div class="scene-eq-bar" style="height:8px"></div>
+            <div class="scene-eq-bar" style="height:10px"></div>
+            <div class="scene-eq-bar" style="height:7px"></div>
+          </div>
+          <h3 class="scene-name">MINIMAL</h3>
+          <p class="scene-desc">Hypnotic, sparse. Subtle motion.</p>
+        </div>
+        <div class="scene-card">
+          <div class="scene-bar"></div>
+          <div class="scene-key">5</div>
+          <div class="scene-eq">
+            <div class="scene-eq-bar" style="height:20px"></div>
+            <div class="scene-eq-bar" style="height:5px"></div>
+            <div class="scene-eq-bar" style="height:24px"></div>
+            <div class="scene-eq-bar" style="height:4px"></div>
+            <div class="scene-eq-bar" style="height:22px"></div>
+          </div>
+          <h3 class="scene-name">ACID</h3>
+          <p class="scene-desc">Glitchy, sharp. Distorted fractals.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── FOOTER ─── -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-wordmark">VIZORA</div>
+      <nav class="footer-links">
+        <a href="https://github.com/prateekaryann/dj-visualizer" target="_blank" rel="noopener">GitHub</a>
+        <a href="index.html">Launch App</a>
+        <a href="#obs">OBS Setup</a>
+        <a href="#scenes">Scenes</a>
+      </nav>
+      <p class="footer-tech">
+        Built with Three.js
+        <span class="sep">·</span>
+        Web Audio API
+        <span class="sep">·</span>
+        WebGL
+      </p>
+    </div>
+  </footer>
+
+</body>
+</html>
