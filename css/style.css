@@ -395,3 +395,107 @@ body.obs-mode #viz-container canvas {
   70%  { opacity: 1; }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(1.05); }
 }
+
+/* ------------------------------------------------------------
+   LYRICS OVERLAY — floating detected words + transcript line
+   ------------------------------------------------------------ */
+
+/* Individual mood-trigger words — float up and fade out */
+#lyric-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.lyric-word {
+  position: absolute;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  pointer-events: none;
+  animation: lyricFloat 3.5s ease-out forwards;
+  text-shadow: 0 0 20px currentColor, 0 0 60px currentColor;
+  opacity: 0;
+  white-space: nowrap;
+}
+
+@keyframes lyricFloat {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.8); filter: blur(4px); }
+  15%  { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  60%  { opacity: 0.8; }
+  100% { opacity: 0; transform: translateY(-80px) scale(1.1); filter: blur(2px); }
+}
+
+/* Full transcript line — bottom of screen, subtle */
+#lyric-line {
+  position: fixed;
+  bottom: 5.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  pointer-events: none;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+  max-width: 80vw;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  transition: color 0.3s, opacity 0.5s;
+  opacity: 0;
+}
+
+#lyric-line.visible {
+  opacity: 1;
+}
+
+#lyric-line.interim {
+  color: rgba(255, 255, 255, 0.2);
+  font-style: italic;
+}
+
+/* Lyrics button styling */
+#btn-lyrics {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+}
+
+#btn-lyrics svg {
+  width: 16px;
+  height: 16px;
+}
+
+#btn-lyrics.active {
+  background: rgba(170, 68, 255, 0.15);
+  border-color: rgba(170, 68, 255, 0.6);
+  color: rgba(170, 68, 255, 1);
+  box-shadow: 0 0 20px rgba(170, 68, 255, 0.3);
+}
+
+/* Mood flash — brief fullscreen color wash on mood change */
+#mood-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease-in;
+  mix-blend-mode: screen;
+}
+
+#mood-flash.active {
+  opacity: 1;
+  animation: moodFlashFade 1.2s ease-out forwards;
+}
+
+@keyframes moodFlashFade {
+  0%   { opacity: 0.4; }
+  100% { opacity: 0; }
+}

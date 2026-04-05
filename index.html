@@ -19,6 +19,10 @@
   <!-- Three.js mount target -->
   <div id="viz-container"></div>
 
+  <!-- Floating lyrics overlay -->
+  <div id="lyric-overlay" aria-live="polite"></div>
+  <div id="lyric-line" aria-live="polite"></div>
+
   <!-- UI overlay -->
   <div id="ui">
 
@@ -33,6 +37,13 @@
 
     <!-- Top-right: controls -->
     <div id="top-controls">
+      <button id="btn-lyrics" type="button" aria-label="Toggle lyrics mode" aria-pressed="false">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3z"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>LYRICS</span>
+      </button>
       <button id="btn-mic" type="button" aria-label="Toggle microphone input" aria-pressed="false">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <rect x="9" y="2" width="6" height="11" rx="3" ry="3"
@@ -95,6 +106,7 @@
   <!-- App scripts (order matters) -->
   <script src="js/visualizer-bg.js"></script>
   <script src="js/mic-analyser.js"></script>
+  <script src="js/lyric-engine.js"></script>
   <script src="js/app.js"></script>
 
 </body>

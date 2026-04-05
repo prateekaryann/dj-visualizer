@@ -22,6 +22,8 @@ const SCENE_KEYS = ['TECHNO', 'TRANCE', 'HOUSE', 'MINIMAL', 'ACID'];
 
 let vizBG = null;
 let micAnalyser = null;
+let lyricEngine = null;
+let lyricsActive = false;
 let currentScene = 'TECHNO';
 let currentBpm = null;
 
@@ -41,10 +43,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   vizBG = new VisualizerBG(container);
   micAnalyser = new MicAnalyser();
+  lyricEngine = new LyricEngine();
+
+  // Create mood flash overlay
+  const moodFlash = document.createElement('div');
+  moodFlash.id = 'mood-flash';
+  document.body.appendChild(moodFlash);
 
   applyScene('TECHNO');
   startAnimationLoop();
   setupMicButton();
+  setupLyricsButton();
   setupSceneTabs();
   setupTapBpm();
   setupUiAutoHide();
@@ -132,6 +141,7 @@ const toggleMic = async () => {
       vizBG.setMicMode(true);
       dot.classList.add('listening');
     } catch (err) {
+      console.error('[VIZORA MIC ERROR]', err);
       const isDenied = err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError');
       const isNotFound = err && err.name === 'NotFoundError';
       let msg = 'Mic error: ' + (err ? err.name : 'unknown');
@@ -155,6 +165,91 @@ const toggleMic = async () => {
     vizBG.setMicMode(false);
     dot.classList.remove('listening');
   }
+};
+
+// --- Lyrics ---
+
+const setupLyricsButton = () => {
+  const btn = document.getElementById('btn-lyrics');
+  if (!btn) return;
+  btn.addEventListener('click', toggleLyrics);
+};
+
+const toggleLyrics = () => {
+  const btn = document.getElementById('btn-lyrics');
+  if (!lyricsActive) {
+    const started = lyricEngine.start({
+      onMood: (profile, moodName) => {
+        // Switch visual theme + formation based on detected mood
+        vizBG.setTheme(profile.theme);
+        vizBG.setGenre(profile.genre);
+
+        // Trigger a mood flash
+        const flash = document.getElementById('mood-flash');
+        if (flash) {
+          flash.style.background = `radial-gradient(ellipse at center, ${profile.color}44, transparent 70%)`;
+          flash.classList.remove('active');
+          void flash.offsetWidth; // force reflow
+          flash.classList.add('active');
+        }
+
+        // Show scene toast with mood name
+        showSceneToast(moodName.toUpperCase());
+      },
+      onLyric: (word, profile) => {
+        // Spawn floating word on the canvas
+        spawnLyricWord(word, profile.color);
+        // Trigger a click burst at a random position for emphasis
+        vizBG.triggerClick((Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 1.5);
+      },
+      onLine: (transcript, isFinal) => {
+        const line = document.getElementById('lyric-line');
+        if (!line) return;
+        line.textContent = transcript;
+        line.classList.add('visible');
+        line.classList.toggle('interim', !isFinal);
+        // Fade out after 4s of no update
+        clearTimeout(line._hideTimer);
+        line._hideTimer = setTimeout(() => {
+          line.classList.remove('visible');
+        }, 4000);
+      }
+    });
+
+    if (started !== false) {
+      lyricsActive = true;
+      btn.classList.add('active');
+      btn.querySelector('span').textContent = '● LYRICS';
+      btn.setAttribute('aria-pressed', 'true');
+    }
+  } else {
+    lyricEngine.stop();
+    lyricsActive = false;
+    btn.classList.remove('active');
+    btn.querySelector('span').textContent = 'LYRICS';
+    btn.setAttribute('aria-pressed', 'false');
+    document.getElementById('lyric-line').classList.remove('visible');
+  }
+};
+
+const spawnLyricWord = (word, color) => {
+  const overlay = document.getElementById('lyric-overlay');
+  if (!overlay) return;
+
+  const el = document.createElement('div');
+  el.className = 'lyric-word';
+  el.textContent = word;
+  el.style.color = color;
+  // Random font size for variety
+  el.style.fontSize = (1.5 + Math.random() * 2.5) + 'rem';
+  // Random position — center-biased
+  el.style.left = (20 + Math.random() * 60) + '%';
+  el.style.top = (25 + Math.random() * 50) + '%';
+
+  overlay.appendChild(el);
+
+  // Remove after animation ends
+  setTimeout(() => el.remove(), 3600);
 };
 
 // --- Scene Tabs ---
@@ -283,6 +378,10 @@ const setupKeyboard = () => {
 
       case 'KeyT':
         handleTap();
+        break;
+
+      case 'KeyL':
+        toggleLyrics();
         break;
     }
   });
