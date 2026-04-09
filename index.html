@@ -39,6 +39,69 @@
     <div id="lyrics-interim" class="lyrics-interim"></div>
   </div>
 
+  <!-- Particle config panel -->
+  <div id="particle-config-panel" class="config-panel">
+    <div class="config-panel-header">
+      <span class="config-panel-title">PARTICLE CONFIG</span>
+      <button id="btn-config-close" type="button" title="Close">&times;</button>
+    </div>
+    <div class="config-panel-content">
+      <label class="config-toggle config-toggle-master">
+        <input type="checkbox" id="cfg-enabled" checked />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">Particles ON/OFF</span>
+      </label>
+      <hr class="config-divider" />
+      <label class="config-toggle">
+        <input type="checkbox" id="cfg-beat-react" checked />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">Beat Reactivity</span>
+      </label>
+      <label class="config-toggle">
+        <input type="checkbox" id="cfg-color-cycle" checked />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">Color Cycling</span>
+      </label>
+      <label class="config-toggle">
+        <input type="checkbox" id="cfg-formation-morph" checked />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">Formation Morphing</span>
+      </label>
+      <label class="config-toggle">
+        <input type="checkbox" id="cfg-shape-shift" checked />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">Shape Shifting</span>
+      </label>
+      <label class="config-toggle">
+        <input type="checkbox" id="cfg-camera-shake" checked />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">Camera Shake</span>
+      </label>
+      <label class="config-toggle">
+        <input type="checkbox" id="cfg-displacement" checked />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">Wave Displacement</span>
+      </label>
+      <label class="config-toggle">
+        <input type="checkbox" id="cfg-connections" checked />
+        <span class="toggle-slider"></span>
+        <span class="toggle-label">Particle Connections</span>
+      </label>
+      <div class="config-slider-group">
+        <label class="config-slider-label">Particle Size</label>
+        <input type="range" id="cfg-particle-size" min="0.2" max="4" step="0.1" value="1" class="config-slider" />
+      </div>
+      <div class="config-slider-group">
+        <label class="config-slider-label">Speed</label>
+        <input type="range" id="cfg-speed" min="0.1" max="2" step="0.05" value="1" class="config-slider" />
+      </div>
+      <div class="config-slider-group">
+        <label class="config-slider-label">Chaos</label>
+        <input type="range" id="cfg-chaos" min="0" max="1" step="0.05" value="0.1" class="config-slider" />
+      </div>
+    </div>
+  </div>
+
   <!-- UI overlay -->
   <div id="ui">
 
@@ -91,6 +154,16 @@
     <!-- Bottom bar -->
     <div id="bottom-bar">
 
+      <!-- Visualization mode selector -->
+      <div id="viz-mode-selector" role="tablist" aria-label="Visualization mode" style="display: none;">
+        <button type="button" role="tab" data-mode="default" aria-selected="true" class="viz-mode-tab active" title="Classic particle system">DEFAULT</button>
+        <button type="button" role="tab" data-mode="julia" aria-selected="false" class="viz-mode-tab" title="Julia set fractal">JULIA</button>
+        <button type="button" role="tab" data-mode="parametric" aria-selected="false" class="viz-mode-tab" title="Parametric surfaces">SURFACE</button>
+        <button type="button" role="tab" data-mode="metaball" aria-selected="false" class="viz-mode-tab" title="Organic blobs">METABALL</button>
+        <button type="button" role="tab" data-mode="particle-morph" aria-selected="false" class="viz-mode-tab" title="Particle morphing shapes">MORPH</button>
+        <button type="button" role="tab" data-mode="humanoid" aria-selected="false" class="viz-mode-tab" title="Humanoid particle formation">HUMANOID</button>
+      </div>
+
       <!-- Scene selector tabs -->
       <div id="scene-tabs" role="tablist" aria-label="Visualizer scene">
         <button type="button" role="tab" data-scene="TECHNO" aria-selected="true"  class="scene-tab active">TECHNO</button>
@@ -105,6 +178,15 @@
         <button id="btn-tap" type="button" aria-label="Tap to set BPM">TAP BPM</button>
         <span id="bpm-display" aria-live="polite">-- BPM</span>
       </div>
+
+      <!-- Particle config -->
+      <button id="btn-particle-config" type="button" class="scene-tab" aria-label="Particle animation settings" title="Particle settings">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" style="vertical-align:-2px;margin-right:4px">
+          <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+            fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>CONFIG
+      </button>
 
       <!-- Show lyrics panel -->
       <button id="btn-show-lyrics" type="button" class="scene-tab" aria-label="Show captured lyrics">
@@ -129,10 +211,25 @@
   <!-- Three.js from CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
+  <!-- Post-processing for humanoid visualizer -->
+  <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/FXAAShader.js"></script>
+
   <!-- App scripts (order matters) -->
+  <script src="js/audio-metrics.js"></script>
   <script src="js/visualizer-bg.js"></script>
   <script src="js/mic-analyser.js"></script>
   <script src="js/lyric-engine.js"></script>
+  <script src="js/julia-set-visualizer.js"></script>
+  <script src="js/metaball-visualizer.js"></script>
+  <script src="js/parametric-surface-visualizer.js"></script>
+  <script src="js/particle-morph-visualizer.js"></script>
+  <script src="js/humanoid-visualizer.js"></script>
   <script src="js/app.js"></script>
 
 </body>

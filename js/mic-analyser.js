@@ -41,11 +41,11 @@ class MicAnalyser {
 
     // Amplify the mic signal strongly before analysis
     this._gain      = this._ctx.createGain();
-    this._gain.gain.value = 12;   // ×12 — compensates for air-gap attenuation
+    this._gain.gain.value = 6;    // ×6 — moderate boost, less noise amplification
 
     this._analyser                      = this._ctx.createAnalyser();
     this._analyser.fftSize              = 2048;
-    this._analyser.smoothingTimeConstant = 0.5;  // fast, responsive to transients
+    this._analyser.smoothingTimeConstant = 0.65;  // slightly more smoothing to tame noise
 
     this._source.connect(this._gain);
     this._gain.connect(this._analyser);

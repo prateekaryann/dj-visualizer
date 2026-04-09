@@ -21,7 +21,10 @@ const SCENE_KEYS = ['TECHNO', 'TRANCE', 'HOUSE', 'MINIMAL', 'ACID'];
 // --- State ---
 
 let vizBG = null;
+let currentVisualizer = null; // Current active visualizer (not BG)
+let currentVisualizerMode = 'default'; // 'default', 'julia', 'parametric', 'metaball'
 let micAnalyser = null;
+let audioMetrics = null;
 let lyricEngine = null;
 let lyricsActive = false;
 let currentScene = 'TECHNO';
@@ -43,6 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   vizBG = new VisualizerBG(container);
   micAnalyser = new MicAnalyser();
+  audioMetrics = new AudioMetrics();
+  vizBG._audioMetrics = audioMetrics;
   lyricEngine = new LyricEngine();
 
   // Create mood flash overlay
@@ -56,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupLyricsButton();
   setupLyricsPanel();
   setupSceneTabs();
+  setupVisualizationModes();
   setupTapBpm();
   setupUiAutoHide();
   setupMouseInteraction();
@@ -63,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupKeyboard();
   setupResize();
   setupObsMode();
+  setupParticleConfig();
 });
 
 // --- Animation Loop ---
@@ -74,10 +81,23 @@ const startAnimationLoop = () => {
   const loop = () => {
     requestAnimationFrame(loop);
 
-    if (micAnalyser.active) {
-      vizBG.update(micAnalyser.getFrequencyData(), micAnalyser.getWaveformData());
-    } else {
-      vizBG.update(EMPTY_FREQ, EMPTY_WAVE);
+    const freqData = micAnalyser.active ? micAnalyser.getFrequencyData() : EMPTY_FREQ;
+    const waveData = micAnalyser.active ? micAnalyser.getWaveformData() : EMPTY_WAVE;
+
+    // Feed the enhanced audio metrics engine
+    if (audioMetrics) {
+      const sr = micAnalyser._ctx ? micAnalyser._ctx.sampleRate : 44100;
+      audioMetrics.update(freqData, waveData, sr);
+    }
+
+    // Update default visualizer
+    if (currentVisualizerMode === 'default') {
+      vizBG.update(freqData, waveData);
+    }
+
+    // Update custom visualizer if active
+    if (currentVisualizer && currentVisualizer.update) {
+      currentVisualizer.update(freqData, waveData);
     }
   };
 
@@ -352,6 +372,73 @@ const setupSceneTabs = () => {
   });
 };
 
+// --- Visualization Modes ---
+
+const setupVisualizationModes = () => {
+  const container = document.getElementById('viz-mode-selector');
+  if (!container) return;
+
+  container.addEventListener('click', (e) => {
+    const tab = e.target.closest('.viz-mode-tab');
+    if (!tab) return;
+
+    const mode = tab.dataset.mode;
+    if (mode) {
+      switchVisualizationMode(mode);
+    }
+  });
+
+  // Show visualization mode selector on Shift+V
+  // Hidden by default for clean UI
+};
+
+const switchVisualizationMode = (mode) => {
+  // Dispose old visualizer
+  if (currentVisualizer) {
+    currentVisualizer.dispose();
+    currentVisualizer = null;
+  }
+
+  currentVisualizerMode = mode;
+  const container = document.getElementById('viz-container');
+
+  // Show/hide the current visualizer
+  const vizModeSelector = document.getElementById('viz-mode-selector');
+
+  if (mode === 'default') {
+    // Use default BG visualizer (already running)
+    if (vizModeSelector) vizModeSelector.style.display = 'none';
+  } else {
+    // Create specialized visualizer
+    if (vizModeSelector) vizModeSelector.style.display = 'flex';
+
+    switch (mode) {
+      case 'julia':
+        currentVisualizer = new JuliaSetVisualizer(container, micAnalyser);
+        break;
+      case 'parametric':
+        currentVisualizer = new ParametricSurfaceVisualizer(container, micAnalyser);
+        break;
+      case 'metaball':
+        currentVisualizer = new MetaballVisualizer(container, micAnalyser);
+        break;
+      case 'particle-morph':
+        currentVisualizer = new ParticleMorphVisualizer(container, micAnalyser);
+        break;
+      case 'humanoid':
+        currentVisualizer = new HumanoidVisualizer(container, micAnalyser);
+        break;
+    }
+  }
+
+  // Update active tab
+  document.querySelectorAll('.viz-mode-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.mode === mode);
+  });
+
+  showSceneToast(`${mode.toUpperCase()} MODE`);
+};
+
 // --- Tap BPM ---
 
 const setupTapBpm = () => {
@@ -467,6 +554,32 @@ const setupKeyboard = () => {
       case 'KeyL':
         toggleLyrics();
         break;
+
+      case 'KeyV': {
+        // Toggle visualization mode selector visibility
+        const selector = document.getElementById('viz-mode-selector');
+        if (selector) {
+          selector.style.display = selector.style.display === 'none' ? 'flex' : 'none';
+        }
+        break;
+      }
+
+      case 'KeyC': {
+        const cfgPanel = document.getElementById('particle-config-panel');
+        if (cfgPanel) cfgPanel.classList.toggle('open');
+        break;
+      }
+
+      case 'KeyM': {
+        // Cycle through visualization modes with Shift+M key
+        if (e.shiftKey) {
+          const modes = ['default', 'julia', 'parametric', 'metaball', 'particle-morph', 'humanoid'];
+          const currentIndex = modes.indexOf(currentVisualizerMode);
+          const nextMode = modes[(currentIndex + 1) % modes.length];
+          switchVisualizationMode(nextMode);
+        }
+        break;
+      }
     }
   });
 };
@@ -475,6 +588,58 @@ const setupKeyboard = () => {
 
 const setupResize = () => {
   window.addEventListener('resize', () => vizBG.resize());
+};
+
+// --- Particle Config Panel ---
+
+const setupParticleConfig = () => {
+  const panel = document.getElementById('particle-config-panel');
+  const btnOpen = document.getElementById('btn-particle-config');
+  const btnClose = document.getElementById('btn-config-close');
+
+  if (btnOpen) {
+    btnOpen.addEventListener('click', () => {
+      panel.classList.toggle('open');
+      btnOpen.classList.toggle('active', panel.classList.contains('open'));
+    });
+  }
+
+  if (btnClose) {
+    btnClose.addEventListener('click', () => {
+      panel.classList.remove('open');
+      if (btnOpen) btnOpen.classList.remove('active');
+    });
+  }
+
+  // Toggles
+  const bind = (id, key) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => { vizBG.config[key] = el.checked; });
+  };
+  bind('cfg-enabled', 'enabled');
+  bind('cfg-beat-react', 'beatReact');
+  bind('cfg-color-cycle', 'colorCycle');
+  bind('cfg-formation-morph', 'formationMorph');
+  bind('cfg-shape-shift', 'shapeShift');
+  bind('cfg-camera-shake', 'cameraShake');
+  bind('cfg-displacement', 'displacement');
+  bind('cfg-connections', 'connections');
+
+  // Sliders
+  const sizeSlider = document.getElementById('cfg-particle-size');
+  if (sizeSlider) sizeSlider.addEventListener('input', () => {
+    vizBG.config.particleSizeMultiplier = parseFloat(sizeSlider.value);
+  });
+
+  const speedSlider = document.getElementById('cfg-speed');
+  if (speedSlider) speedSlider.addEventListener('input', () => {
+    vizBG.config.speedMultiplier = parseFloat(speedSlider.value);
+  });
+
+  const chaosSlider = document.getElementById('cfg-chaos');
+  if (chaosSlider) chaosSlider.addEventListener('input', () => {
+    vizBG.config.chaosOverride = parseFloat(chaosSlider.value);
+  });
 };
 
 // --- OBS Mode ---
